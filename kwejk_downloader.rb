@@ -4,27 +4,22 @@ require 'net/http'
 require 'nokogiri'
 require 'pathname'
 
-HOST='kwejk.pl'
-PAGESTAMP_FILE='kwejk_downloader_pagestamp'
-
+HOST = 'kwejk.pl'.freeze
+PAGESTAMP_FILE = 'kwejk_downloader_pagestamp'.freeze
 
 def download_image(source, out_file)
-  File.open(out_file,'w')do |f|
-    uri = URI.parse(source)
-    Net::HTTP.start(uri.host,uri.port)do |http| 
-      resp = http.get(uri.path) 
-      open(out_file, "wb") do |file|
-        file.write(resp.body)
-      end
-
+  uri = URI.parse(source)
+  Net::HTTP.start(uri.host, uri.port) do |http|
+    resp = http.get(uri.path)
+    open("out_dir/#{out_file}", 'wb') do |file|
+      file.write(resp.body)
     end
   end
-
 end
 
 def get_max_page
   Net::HTTP.start(HOST) do |http|
-    resp = http.get("/strona/9999999999999999999999999999999") #szykamy najwiekszej strony
+    resp = http.get('/strona/9999999999999999999999999999999') #szykamy najwiekszej strony
     if resp.code == '404'
       puts 'page not found 404 :('
       return 0
@@ -35,7 +30,6 @@ def get_max_page
     return Integer(penultimate_page_num.to_s) + 1
   end
 end
-
 
 def process_page(page_num)
   Net::HTTP.start(HOST) do |http|
@@ -59,37 +53,30 @@ def process_page(page_num)
   end
 end
 
-
 def check_pagestamp
-  begin
-    File.open(PAGESTAMP_FILE, "r") do |infile|
-      line = infile.gets
-      pagestamp = Integer(line)
-      puts "pagestamp #{pagestamp}"
-      return pagestamp
-    end
-  rescue Errno::ENOENT
+  File.open(PAGESTAMP_FILE, 'r') do |infile|
+    line = infile.gets
+    pagestamp = Integer(line)
+    puts "pagestamp #{pagestamp}"
+    return pagestamp
   end
-
+rescue
   return 1
-
 end
 
-def set_pagestamp(page_num)
-  File.open(PAGESTAMP_FILE, 'w') {|f| f.write(String(page_num)) }
+def write_pagestamp(page_num)
+  File.open(PAGESTAMP_FILE, 'w') { |f| f.write(String(page_num)) }
 end
 
 def start
-  Net::HTTP.start(HOST) do |http|
-    max_page = get_max_page()
-    puts "Maximum page=#{max_page}"
+  max_page = get_max_page
+  puts "Maximum page=#{max_page}"
 
-    pagestamp = check_pagestamp()
+  pagestamp = check_pagestamp
 
-    for page_num in pagestamp..max_page
-      set_pagestamp(page_num)
-      process_page(page_num)
-    end
+  (pagestamp..max_page).each do |page_num|
+    write_pagestamp(page_num)
+    process_page(page_num)
   end
 end
 
