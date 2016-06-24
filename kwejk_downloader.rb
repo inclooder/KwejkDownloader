@@ -17,13 +17,10 @@ def download_image(source, out_file)
   end
 end
 
-def get_max_page
+def find_max_page
   Net::HTTP.start(HOST) do |http|
-    resp = http.get('/strona/9999999999999999999999999999999') #szykamy najwiekszej strony
-    if resp.code == '404'
-      puts 'page not found 404 :('
-      return 0
-    end
+    resp = http.get('/strona/9999999999999999999999999999999')
+    raise 'Could not find max page number' if resp.code == '404'
     dom = Nokogiri::HTML(resp.body)
     penultimate_page_url = dom.css('a.btn-next-page').first['href']
     penultimate_page_num = Pathname.new(penultimate_page_url).basename
@@ -41,15 +38,14 @@ def process_page(page_num)
     dom = Nokogiri::HTML(resp.body)
 
     dom.css('div.media img').each do |img_elem|
-        image_source = img_elem['src']
+      image_source = img_elem['src']
 
-        file_name = Pathname.new(image_source).basename
-        unless File.exists? file_name
-          puts "downloading image #{image_source}"
-          download_image(image_source, file_name)
-        end
+      file_name = Pathname.new(image_source).basename
+      unless File.exist? file_name
+        puts "downloading image #{image_source}"
+        download_image(image_source, file_name)
+      end
     end
-
   end
 end
 
@@ -69,7 +65,7 @@ def write_pagestamp(page_num)
 end
 
 def start
-  max_page = get_max_page
+  max_page = find_max_page
   puts "Maximum page=#{max_page}"
 
   pagestamp = check_pagestamp
