@@ -1,4 +1,4 @@
-KwejkDownloader
+# kwejk-downloader-ruby 
 ===============
 
-Download Images
+Simple script that downloads images from [kwejk.pl](http://kwejk.pl)
