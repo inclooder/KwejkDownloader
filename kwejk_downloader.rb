@@ -4,23 +4,28 @@ require 'net/http'
 require 'nokogiri'
 require 'pathname'
 
-
 class KwejkDownloader
-  HOST = 'kwejk.pl'.freeze
+  KWEJK_DOMAIN = 'kwejk.pl'.freeze
   PAGESTAMP_FILE = 'pagestamp'.freeze
+
+  attr_reader :out_dir
+
+  def initialize(out_dir: './')
+    @out_dir = Pathname.new(out_dir)
+  end
 
   def download_image(source, out_file)
     uri = URI.parse(source)
     Net::HTTP.start(uri.host, uri.port) do |http|
       resp = http.get(uri.path)
-      open("#{out_file}", 'wb') do |file|
+      open(out_dir + out_file, 'wb') do |file|
         file.write(resp.body)
       end
     end
   end
 
   def find_max_page
-    Net::HTTP.start(HOST) do |http|
+    Net::HTTP.start(KWEJK_DOMAIN) do |http|
       resp = http.get('/strona/9999999999999999999999999999999')
       raise 'Could not find max page number' if resp.code == '404'
       dom = Nokogiri::HTML(resp.body)
@@ -31,12 +36,12 @@ class KwejkDownloader
   end
 
   def process_page(page_num)
-    Net::HTTP.start(HOST) do |http|
+    Net::HTTP.start(KWEJK_DOMAIN) do |http|
       puts "quering page #{page_num}"
 
       page_addr = "/strona/#{page_num}"
       resp = http.get(page_addr)
-      puts "page [#{page_addr}] not found 404 :(" if resp.code == '404'
+      puts "page [#{page_addr}] not found 404" if resp.code == '404'
       dom = Nokogiri::HTML(resp.body)
 
       dom.css('div.media img').each do |img_elem|
@@ -52,7 +57,7 @@ class KwejkDownloader
   end
 
   def read_pagestamp
-    File.open(PAGESTAMP_FILE, 'r') do |infile|
+    File.open(out_dir + PAGESTAMP_FILE, 'r') do |infile|
       line = infile.gets
       line.to_i
     end
@@ -65,7 +70,7 @@ class KwejkDownloader
   end
 
   def write_pagestamp(page_num)
-    File.open(PAGESTAMP_FILE, 'w') { |f| f.write(page_num.to_s) }
+    File.open(out_dir + PAGESTAMP_FILE, 'w') { |f| f.write(page_num.to_s) }
   end
 
   def start
@@ -81,10 +86,13 @@ class KwejkDownloader
   end
 end
 
-
-
 begin
-  program = KwejkDownloader.new
+  unless ARGV.empty?
+    program = KwejkDownloader.new out_dir: ARGV[0]
+  else
+    program = KwejkDownloader.new
+  end
+
   program.start
 rescue Interrupt
 end
