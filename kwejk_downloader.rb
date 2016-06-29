@@ -3,8 +3,11 @@
 require 'net/http'
 require 'nokogiri'
 require 'pathname'
+require_relative 'lib/kwejk_downloader/last_page_finder'
 
-class KwejkDownloader
+include KwejkDownloader
+
+class KDProgram
   KWEJK_DOMAIN = 'kwejk.pl'.freeze
   PAGESTAMP_FILE = 'pagestamp'.freeze
 
@@ -21,17 +24,6 @@ class KwejkDownloader
       open(out_dir + out_file, 'wb') do |file|
         file.write(resp.body)
       end
-    end
-  end
-
-  def find_max_page
-    Net::HTTP.start(KWEJK_DOMAIN) do |http|
-      resp = http.get('/strona/9999999999999999999999999999999')
-      raise 'Could not find max page number' if resp.code == '404'
-      dom = Nokogiri::HTML(resp.body)
-      penultimate_page_url = dom.css('a.btn-next-page').first['href']
-      penultimate_page_num = Pathname.new(penultimate_page_url).basename
-      return Integer(penultimate_page_num.to_s) + 1
     end
   end
 
@@ -74,7 +66,7 @@ class KwejkDownloader
   end
 
   def start
-    max_page = find_max_page
+    max_page = LastPageFinder.find
     puts "Maximum page=#{max_page}"
 
     pagestamp = check_pagestamp
@@ -88,9 +80,9 @@ end
 
 begin
   unless ARGV.empty?
-    program = KwejkDownloader.new out_dir: ARGV[0]
+    program = KDProgram.new out_dir: ARGV[0]
   else
-    program = KwejkDownloader.new
+    program = KDProgram.new
   end
 
   program.start
